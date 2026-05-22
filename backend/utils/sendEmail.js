@@ -93,9 +93,10 @@ const sendEmail = async (options) => {
         console.warn(`Attempted Destination: ${options.email}`);
         console.warn(`Resend Error: ${errorMessage}`);
         
-        // Try standard SMTP fallback if configured
+        // Try standard SMTP fallback if configured (skip on Render where SMTP ports are blocked by firewall)
+        const isRender = process.env.RENDER === 'true';
         const hasSmtpConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
-        if (hasSmtpConfig) {
+        if (hasSmtpConfig && !isRender) {
           console.log(`[Resend Fallback] SMTP credentials found. Attempting SMTP delivery directly to ${options.email}...`);
           const smtpResult = await sendSmtpEmail(options);
           if (smtpResult.success) {
@@ -104,6 +105,8 @@ const sendEmail = async (options) => {
             return smtpResult;
           }
           console.error(`[Resend Fallback] Fallback SMTP delivery failed: ${smtpResult.error}`);
+        } else if (isRender) {
+          console.log('[Resend Fallback] Deployed on Render. Skipping blocked SMTP ports to avoid timeout lag.');
         }
         
         // If SMTP failed or is not configured, fallback to redirecting the email to the verified owner using Resend Sandbox sender
