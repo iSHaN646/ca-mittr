@@ -31,6 +31,7 @@ const sendEmail = async (options) => {
       return { success: true, messageId: data.id };
     } catch (err) {
       console.error('[Resend HTTP Error] Failed to send email via Resend:', err.message);
+      return { success: false, error: err.message };
     }
   }
 
@@ -62,6 +63,7 @@ const sendEmail = async (options) => {
       return { success: true, messageId: info.messageId };
     } catch (err) {
       console.error('[SMTP Error] Failed to send email via SMTP:', err.message);
+      return { success: false, error: err.message };
     }
   }
 

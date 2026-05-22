@@ -68,15 +68,19 @@ export const registerRequest = async (req, res) => {
       token: null,
     });
 
-    // Send Real OTP Email (non-blocking background task)
-    sendEmail({
+    // Send Real OTP Email (awaited to ensure it is actually sent)
+    const emailResult = await sendEmail({
       email: email.toLowerCase(),
       subject: `[CA-MITTR Ledger] Your Security Verification OTP is ${otpCode}`,
       otp: otpCode,
       html: getOtpTemplate(otpCode),
-    }).catch((emailErr) => {
-      console.error('[Email Error] Failed to send registration email:', emailErr.message);
     });
+
+    if (emailResult && !emailResult.success) {
+      // Delete the unverified user so they can try registering again
+      await User.deleteOne({ email: email.toLowerCase(), token: null });
+      return res.status(400).json({ success: false, error: emailResult.error || 'Failed to send verification email' });
+    }
 
     res.status(200).json({ success: true, message: 'OTP verification code sent successfully.' });
   } catch (error) {
@@ -106,15 +110,21 @@ export const loginRequest = async (req, res) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
     await user.save();
 
-    // Send Real OTP Email (non-blocking background task)
-    sendEmail({
+    // Send Real OTP Email (awaited to ensure it is actually sent)
+    const emailResult = await sendEmail({
       email: email.toLowerCase(),
       subject: `[CA-MITTR Ledger] Your Security Verification OTP is ${otpCode}`,
       otp: otpCode,
       html: getOtpTemplate(otpCode),
-    }).catch((emailErr) => {
-      console.error('[Email Error] Failed to send login email:', emailErr.message);
     });
+
+    if (emailResult && !emailResult.success) {
+      // Clear OTP since it wasn't delivered
+      user.otpCode = undefined;
+      user.otpExpires = undefined;
+      await user.save();
+      return res.status(400).json({ success: false, error: emailResult.error || 'Failed to send verification email' });
+    }
 
     res.status(200).json({ success: true, message: 'OTP verification code sent successfully.' });
   } catch (error) {
