@@ -150,10 +150,13 @@ const sendEmail = async (options) => {
     }
   }
 
-  // 2. Standard SMTP Transport
+  // 2. Standard SMTP Transport (skip on Render where SMTP ports are blocked by the firewall)
+  const isRender = process.env.RENDER === 'true';
   const hasSmtpConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
-  if (hasSmtpConfig) {
+  if (hasSmtpConfig && !isRender) {
     return await sendSmtpEmail(options);
+  } else if (hasSmtpConfig && isRender) {
+    console.warn('[SMTP] Deployed on Render. Standard SMTP ports are blocked. Falling back to console to avoid timeout lag.');
   }
 
   // 3. Graceful Local Fallback
