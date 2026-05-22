@@ -162,6 +162,16 @@ code {
 .s-card.teal .s-val { color: var(--teal); }
 .s-card.indigo .s-val { color: var(--indigo); }
 
+/* ── Section Heading ───────────────────────────────────────────────────── */
+.section-heading {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-top: 4px;
+  margin-bottom: 2px;
+  letter-spacing: -0.3px;
+}
+
 /* ── Controls Bar ──────────────────────────────────────────────────────── */
 .controls-bar {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;

@@ -503,6 +503,8 @@ export default function App() {
         </div>
       </section>
 
+      <h2 className="section-heading no-print">Dikkat thodi na hai usme koi...</h2>
+
       {/* ── CONTROLS ─────────────────────────────────────────────────────── */}
       <div className="controls-bar no-print">
         <div className="search-wrap">
