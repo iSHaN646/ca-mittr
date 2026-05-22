@@ -13,6 +13,7 @@ const sendSmtpEmail = async (options) => {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      family: 4, // Force IPv4 to bypass local ISP/network IPv6 ENETUNREACH connection errors
       connectionTimeout: 10000, // 10 seconds timeout limit
       socketTimeout: 10000,
     });
