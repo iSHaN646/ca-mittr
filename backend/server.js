@@ -21,6 +21,14 @@ import authRoutes from './routes/authRoutes.js';
 // Load environment variables
 dotenv.config();
 
+console.log('\n--- ✉️  ACTIVE MAIL SERVER CONFIGURATION ---');
+console.log('RESEND_API_KEY loaded:   ', process.env.RESEND_API_KEY ? '✅ YES' : '❌ NO');
+console.log('SMTP_HOST loaded:        ', process.env.SMTP_HOST || '❌ NONE');
+console.log('SMTP_USER loaded:        ', process.env.SMTP_USER || '❌ NONE');
+console.log('SMTP_PASS loaded:        ', process.env.SMTP_PASS ? '✅ YES' : '❌ NO');
+console.log('FROM_EMAIL loaded:       ', process.env.FROM_EMAIL || '❌ NONE');
+console.log('-------------------------------------------\n');
+
 // Connect to Database
 connectDB();
 

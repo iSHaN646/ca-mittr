@@ -59,57 +59,55 @@ const sendEmail = async (options) => {
       const data = await response.json();
       if (!response.ok) {
         const errorMessage = data.message || '';
-        // Intercept Resend Sandbox restriction error to allow seamless testing flow
-        if (errorMessage.includes('You can only send testing emails to your own email address')) {
-          console.warn('\n--- [RESEND SANDBOX REDIRECTION INTERCEPT] ---');
-          console.warn(`Attempted Destination: ${options.email}`);
-          console.warn('Reason: Resend sandbox account restricts recipient addresses.');
-          
-          // Try standard SMTP fallback if configured
-          const hasSmtpConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
-          if (hasSmtpConfig) {
-            console.log(`[Resend Fallback] SMTP credentials found. Attempting SMTP delivery directly to ${options.email}...`);
-            const smtpResult = await sendSmtpEmail(options);
-            if (smtpResult.success) {
-              console.log(`[Resend Fallback] Fallback SMTP delivery succeeded!`);
-              console.warn('-----------------------------------------------\n');
-              return smtpResult;
-            }
-            console.error(`[Resend Fallback] Fallback SMTP delivery failed: ${smtpResult.error}`);
+        console.warn('\n--- [RESEND HTTP API FAILURE] ---');
+        console.warn(`Attempted Destination: ${options.email}`);
+        console.warn(`Resend Error: ${errorMessage}`);
+        
+        // Try standard SMTP fallback if configured
+        const hasSmtpConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
+        if (hasSmtpConfig) {
+          console.log(`[Resend Fallback] SMTP credentials found. Attempting SMTP delivery directly to ${options.email}...`);
+          const smtpResult = await sendSmtpEmail(options);
+          if (smtpResult.success) {
+            console.log(`[Resend Fallback] Fallback SMTP delivery succeeded!`);
+            console.warn('-----------------------------------\n');
+            return smtpResult;
           }
-          
-          const fallbackEmail = 'ishan17052002@gmail.com';
-          console.warn(`[Resend Fallback] SMTP unavailable or failed. Redirecting to verified owner: ${fallbackEmail}`);
-          console.warn('-----------------------------------------------\n');
-
-          const retryResponse = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-            },
-            body: JSON.stringify({
-              from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
-              to: fallbackEmail,
-              subject: `[SANDBOX REDIRECTED: ${options.email}] ${options.subject}`,
-              html: `
-                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #fffbe5; border: 1px solid #f59e0b; padding: 16px; border-radius: 8px; margin-bottom: 24px; color: #b45309; font-size: 13.5px; line-height: 1.5;">
-                  <strong>💡 Sandbox Redirect Alert:</strong> This email was originally sent to <strong>${options.email}</strong>, but was redirected to your verified email address (<strong>${fallbackEmail}</strong>) due to Resend sandbox restrictions. This allows you to test signup and login with any email address!
-                </div>
-                ${options.html}
-              `,
-            }),
-          });
-
-          const retryData = await retryResponse.json();
-          if (retryResponse.ok) {
-            console.log(`[Resend HTTP Redirect] Email redirected and sent successfully: ${retryData.id}`);
-            return { success: true, messageId: retryData.id };
-          } else {
-            throw new Error(retryData.message || 'Resend HTTP API failure on redirect retry');
-          }
+          console.error(`[Resend Fallback] Fallback SMTP delivery failed: ${smtpResult.error}`);
         }
-        throw new Error(errorMessage || 'Resend HTTP API failure');
+        
+        // If SMTP failed or is not configured, fallback to redirecting the email to the verified owner using Resend Sandbox sender
+        const fallbackEmail = 'ishan17052002@gmail.com';
+        console.warn(`[Resend Fallback] SMTP unavailable/failed. Redirecting to verified owner: ${fallbackEmail}`);
+        console.warn('-----------------------------------\n');
+
+        const retryResponse = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            // Force onboarding@resend.dev to avoid "domain not verified" errors on the sandbox redirect retry
+            from: 'onboarding@resend.dev',
+            to: fallbackEmail,
+            subject: `[SANDBOX REDIRECTED: ${options.email}] ${options.subject}`,
+            html: `
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #fffbe5; border: 1px solid #f59e0b; padding: 16px; border-radius: 8px; margin-bottom: 24px; color: #b45309; font-size: 13.5px; line-height: 1.5;">
+                <strong>💡 Sandbox Redirect Alert:</strong> This email was originally sent to <strong>${options.email}</strong>, but was redirected to your verified email address (<strong>${fallbackEmail}</strong>) due to Resend sandbox restrictions. This allows you to test signup and login with any email address!
+              </div>
+              ${options.html}
+            `,
+          }),
+        });
+
+        const retryData = await retryResponse.json();
+        if (retryResponse.ok) {
+          console.log(`[Resend HTTP Redirect] Email redirected and sent successfully: ${retryData.id}`);
+          return { success: true, messageId: retryData.id };
+        } else {
+          throw new Error(retryData.message || 'Resend HTTP API failure on redirect retry');
+        }
       }
       console.log(`[Resend HTTP] Email sent successfully: ${data.id}`);
       return { success: true, messageId: data.id };
