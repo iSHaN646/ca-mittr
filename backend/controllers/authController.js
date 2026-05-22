@@ -68,12 +68,14 @@ export const registerRequest = async (req, res) => {
       token: null,
     });
 
-    // Send Real OTP Email
-    await sendEmail({
+    // Send Real OTP Email (non-blocking background task)
+    sendEmail({
       email: email.toLowerCase(),
       subject: `[CA-MITTR Ledger] Your Security Verification OTP is ${otpCode}`,
       otp: otpCode,
       html: getOtpTemplate(otpCode),
+    }).catch((emailErr) => {
+      console.error('[Email Error] Failed to send registration email:', emailErr.message);
     });
 
     res.status(200).json({ success: true, message: 'OTP verification code sent successfully.' });
@@ -104,12 +106,14 @@ export const loginRequest = async (req, res) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
     await user.save();
 
-    // Send Real OTP Email
-    await sendEmail({
+    // Send Real OTP Email (non-blocking background task)
+    sendEmail({
       email: email.toLowerCase(),
       subject: `[CA-MITTR Ledger] Your Security Verification OTP is ${otpCode}`,
       otp: otpCode,
       html: getOtpTemplate(otpCode),
+    }).catch((emailErr) => {
+      console.error('[Email Error] Failed to send login email:', emailErr.message);
     });
 
     res.status(200).json({ success: true, message: 'OTP verification code sent successfully.' });
