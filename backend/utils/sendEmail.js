@@ -4,34 +4,63 @@ import nodemailer from 'nodemailer';
  * Helper to send email via standard SMTP Transport
  */
 const sendSmtpEmail = async (options) => {
-  try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_PORT === '465', // true for port 465, false otherwise
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      family: 4, // Force IPv4 to bypass local ISP/network IPv6 ENETUNREACH connection errors
-      connectionTimeout: 10000, // 10 seconds timeout limit
-      socketTimeout: 10000,
+  const trySmtp = async (port, secure) => {
+    return new Promise((resolve) => {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: port,
+        secure: secure,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+        family: 4, // Force IPv4
+        connectionTimeout: 8000, // 8 seconds timeout
+        socketTimeout: 8000,
+      });
+
+      const mailOptions = {
+        from: `"${process.env.FROM_NAME || 'CA-MITTR Ledger'}" <${process.env.FROM_EMAIL || process.env.SMTP_USER}>`,
+        to: options.email,
+        subject: options.subject,
+        html: options.html,
+      };
+
+      transporter.sendMail(mailOptions, (err, info) => {
+        if (err) {
+          resolve({ success: false, error: err.message });
+        } else {
+          resolve({ success: true, messageId: info.messageId });
+        }
+      });
     });
+  };
 
-    const mailOptions = {
-      from: `"${process.env.FROM_NAME || 'CA-MITTR Ledger'}" <${process.env.FROM_EMAIL || process.env.SMTP_USER}>`,
-      to: options.email,
-      subject: options.subject,
-      html: options.html,
-    };
+  const configuredPort = parseInt(process.env.SMTP_PORT) || 587;
+  const configuredSecure = process.env.SMTP_PORT === '465';
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[SMTP] Email sent successfully to ${options.email}: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
-  } catch (err) {
-    console.error(`[SMTP Error] Failed to send email to ${options.email} via SMTP:`, err.message);
-    return { success: false, error: err.message };
+  console.log(`[SMTP] Attempting delivery on configured Port ${configuredPort}...`);
+  let result = await trySmtp(configuredPort, configuredSecure);
+  if (result.success) {
+    console.log(`[SMTP] Email sent successfully to ${options.email} on Port ${configuredPort}: ${result.messageId}`);
+    return result;
   }
+
+  console.warn(`[SMTP Warning] Port ${configuredPort} failed: ${result.error}`);
+
+  // Fallback port: If 587 failed, try 465 (SSL). If 465 failed, try 587.
+  const fallbackPort = configuredPort === 587 ? 465 : 587;
+  const fallbackSecure = fallbackPort === 465;
+
+  console.log(`[SMTP Fallback] Attempting fallback delivery on Port ${fallbackPort}...`);
+  result = await trySmtp(fallbackPort, fallbackSecure);
+  if (result.success) {
+    console.log(`[SMTP] Email sent successfully to ${options.email} on Fallback Port ${fallbackPort}: ${result.messageId}`);
+    return result;
+  }
+
+  console.error(`[SMTP Error] All SMTP ports (587 and 465) failed to deliver:`, result.error);
+  return result;
 };
 
 /**

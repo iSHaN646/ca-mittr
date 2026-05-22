@@ -1,5 +1,10 @@
 import dns from 'node:dns';
 
+// Force Node.js DNS resolver to prefer IPv4 globally (prevents IPv6 ENETUNREACH on modern Node versions)
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 // Force Node.js DNS resolver to use public DNS servers (handles MongoDB SRV lookups on restrictive ISP DNS)
 try {
   dns.setServers(['8.8.8.8', '1.1.1.1']);
